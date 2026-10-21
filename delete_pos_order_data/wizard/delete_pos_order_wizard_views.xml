@@ -48,6 +48,7 @@
                 <footer>
                     <button name="action_start_deletion" string="Start POS Order Deletion" type="object" class="btn-danger" confirm="Are you sure you want to permanently delete the selected POS orders and associated data?" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
                     <button name="action_process_next_batch" string="Process Next Batch" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'processing')]}"/>
+                    <button name="action_process_all_remaining" string="Process All Remaining Batches" type="object" class="btn-warning" attrs="{'invisible': [('state', '!=', 'processing')]}"/>
                     <button string="Close" class="btn-secondary" special="cancel" attrs="{'invisible': [('state', '=', 'processing')]}"/>
                 </footer>
             </form>

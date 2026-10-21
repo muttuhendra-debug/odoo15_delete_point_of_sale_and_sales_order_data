@@ -166,6 +166,47 @@ class DeletePosOrderWizard(models.TransientModel):
 
         return self._reopen_wizard()
 
+    def action_process_all_remaining(self):
+        self.ensure_one()
+        if self.state != 'processing' or not self.remaining_order_ids:
+            return self._reopen_wizard()
+
+        try:
+            remaining_ids = json.loads(self.remaining_order_ids)
+        except Exception:
+            remaining_ids = []
+
+        if not remaining_ids:
+            self.write({
+                'state': 'done',
+                'progress_percent': 100.0,
+            })
+            return self._reopen_wizard()
+
+        batch_sz = self.batch_size if self.batch_size and self.batch_size > 0 else 2000
+        while remaining_ids:
+            current_batch_ids = remaining_ids[:batch_sz]
+            remaining_ids = remaining_ids[batch_sz:]
+
+            if self.use_fast_mode:
+                self._delete_fast_sql_batch(current_batch_ids)
+            else:
+                self._delete_orm_batch(current_batch_ids)
+
+            new_deleted_count = self.deleted_count + len(current_batch_ids)
+            new_progress = min(100.0, round((new_deleted_count / self.total_count) * 100.0, 2)) if self.total_count else 100.0
+            new_state = 'done' if not remaining_ids else 'processing'
+
+            self.write({
+                'state': new_state,
+                'deleted_count': new_deleted_count,
+                'progress_percent': new_progress,
+                'remaining_order_ids': json.dumps(remaining_ids),
+            })
+            self.env.cr.commit()
+
+        return self._reopen_wizard()
+
     def _reopen_wizard(self):
         return {
             'name': _('Delete Point of Sale Order Data'),
