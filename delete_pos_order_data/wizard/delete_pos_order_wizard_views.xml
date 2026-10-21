@@ -24,7 +24,7 @@
                                 <field name="start_date" attrs="{'invisible': [('filter_type', '!=', 'date_range')]}"/>
                                 <field name="end_date" attrs="{'invisible': [('filter_type', '!=', 'date_range')]}"/>
                                 <field name="month" attrs="{'invisible': [('filter_type', '!=', 'month')], 'required': [('filter_type', '=', 'month')]}"/>
-                                <field name="year" attrs="{'invisible': [('filter_type', '!=', 'month')], 'required': [('filter_type', '=', 'month')]}"/>
+                                <field name="year" options="{'format': False}" attrs="{'invisible': [('filter_type', '!=', 'month')], 'required': [('filter_type', '=', 'month')]}"/>
                                 <field name="pos_config_ids" widget="many2many_tags"/>
                                 <field name="pos_session_ids" widget="many2many_tags"/>
                             </group>
