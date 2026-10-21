@@ -10,8 +10,30 @@ class DeletePosOrderWizard(models.TransientModel):
     _name = 'delete.pos.order.wizard'
     _description = 'Delete Point of Sale Order Data Wizard'
 
+    filter_type = fields.Selection([
+        ('date_range', 'Date Range'),
+        ('month', 'By Month & Year'),
+    ], string='Filter Type', default='date_range')
+
     start_date = fields.Date(string='Start Date')
     end_date = fields.Date(string='End Date')
+
+    month = fields.Selection([
+        ('1', 'January'),
+        ('2', 'February'),
+        ('3', 'March'),
+        ('4', 'April'),
+        ('5', 'May'),
+        ('6', 'June'),
+        ('7', 'July'),
+        ('8', 'August'),
+        ('9', 'September'),
+        ('10', 'October'),
+        ('11', 'November'),
+        ('12', 'December'),
+    ], string='Month', default=lambda self: str(fields.Date.today().month))
+
+    year = fields.Integer(string='Year', default=lambda self: fields.Date.today().year)
     pos_config_ids = fields.Many2many(
         'pos.config',
         string='Point of Sale'
@@ -68,12 +90,23 @@ class DeletePosOrderWizard(models.TransientModel):
             order_ids = self.pos_order_ids.ids
         else:
             domain = []
-            if self.start_date:
-                start_dt = datetime.combine(self.start_date, time.min)
-                domain.append(('date_order', '>=', start_dt))
-            if self.end_date:
-                end_dt = datetime.combine(self.end_date, time.max)
-                domain.append(('date_order', '<=', end_dt))
+            if self.filter_type == 'month' and self.month and self.year:
+                import calendar
+                m = int(self.month)
+                y = int(self.year)
+                last_day = calendar.monthrange(y, m)[1]
+                s_date = datetime(y, m, 1)
+                e_date = datetime(y, m, last_day, 23, 59, 59)
+                domain.append(('date_order', '>=', s_date))
+                domain.append(('date_order', '<=', e_date))
+            else:
+                if self.start_date:
+                    start_dt = datetime.combine(self.start_date, time.min)
+                    domain.append(('date_order', '>=', start_dt))
+                if self.end_date:
+                    end_dt = datetime.combine(self.end_date, time.max)
+                    domain.append(('date_order', '<=', end_dt))
+
             if self.pos_config_ids:
                 domain.append(('config_id', 'in', self.pos_config_ids.ids))
             if self.pos_session_ids:
