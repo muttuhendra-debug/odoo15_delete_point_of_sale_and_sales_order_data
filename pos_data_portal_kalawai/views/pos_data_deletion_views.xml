@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="kalawai_pos_data_deletion_view_tree" model="ir.ui.view">
+        <field name="name">pos_data_deletion_view_tree</field>
+        <field name="model">kalawai.pos.data.deletion</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name" />
+                <field name="tahun_data" />
+                <field name="is_accounting_permissed" />
+                <field name="is_sales_permissed" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="kalawai_pos_data_deletion_view_form" model="ir.ui.view">
+        <field name="name">kalawai.pos.data.deletion.view.form</field>
+        <field name="model">kalawai.pos.data.deletion</field>
+        <field name="arch" type="xml">
+            <form string="Form Penghapusan Data">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name" />
+                            <!-- <field name="user_id" groups="base.group_no_one" readonly="1" /> -->
+                            <field name="tahun_data" />
+                            <field name="data_del_type" />
+                        </group>
+                        <group>
+                            <field name="is_accounting_permissed" attrs="{'invisible': [('data_del_type', '=', 'stock')]}" />
+                            <field name="is_sales_permissed" attrs="{'invisible': [('data_del_type', 'in', ['po', 'stock'])]}" />
+                            <field name="is_purchase_permissed" attrs="{'invisible': [('data_del_type', '=', 'pos')]}" />
+                        </group>
+                    </group>
+                    <br></br>
+                    <br></br>
+                    <br></br>
+                    <div class="oe_button_box" style="margin-right: 160px;" name="button_box_hapus">
+                        <h6 style="color: red; width: 35%; margin-left: 742px;">
+                            Mohon untuk berhati-hati dan mempertimbangkan kembali sebelum menekan tombol hapus.
+                            Karena setiap data yang sudah di hapus tidak akan bisa dikembalikan!
+                        </h6>
+                        <button
+                            name="delete_data_pos_order"
+                            attrs="{'invisible': [('data_del_type', '!=', 'pos')]}"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-trash">
+                                Hapus Data Penjualan Kasir
+                        </button>
+                        <button
+                            name="delete_data_purchase_order"
+                            attrs="{'invisible': [('data_del_type', '!=', 'po')]}"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-trash">
+                                Hapus Data Pembelian Barang
+                        </button>
+                        <button
+                            name="update_data_onhand_stock"
+                            attrs="{'invisible': [('data_del_type', '!=', 'stock')]}"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-trash">
+                                Kosongkan Data Stok Persediaan
+                        </button>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="kalawai_pos_data_deletion_action" model="ir.actions.act_window">
+        <field name="name">Riwayat Penghapusan Data Kalawai</field>
+        <field name="res_model">kalawai.pos.data.deletion</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'tree', 'view_id': ref('pos_data_portal_kalawai.kalawai_pos_data_deletion_view_tree')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('pos_data_portal_kalawai.kalawai_pos_data_deletion_view_form')}),
+        ]"/>
+    </record>
+
+    <menuitem
+        id="kalawai_pos_data_deletion_menu"
+        name="Riwayat Penghapusan Data Kalawai"
+        action="kalawai_pos_data_deletion_action"
+        parent="point_of_sale.menu_point_config_product"
+        groups="pos_data_portal_kalawai.group_data_deletion_access"
+        sequence="200" />
+
+</odoo>

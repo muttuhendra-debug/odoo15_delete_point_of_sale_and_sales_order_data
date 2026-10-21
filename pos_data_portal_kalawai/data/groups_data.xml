@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        
+        <!-- New Group -->
+        <record id="group_data_deletion_access" model="res.groups">
+            <field name="name">Access Kalawai Data Deletion Menu</field>
+        </record>
+
+    </data>
+</odoo>
