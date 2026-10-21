@@ -5,33 +5,47 @@
         <field name="model">delete.pos.order.wizard</field>
         <field name="arch" type="xml">
             <form string="Delete Point of Sale Order Data">
+                <field name="state" invisible="1"/>
                 <sheet>
-                    <group>
-                        <group string="Filter Criteria">
-                            <field name="start_date"/>
-                            <field name="end_date"/>
-                            <field name="pos_config_ids" widget="many2many_tags"/>
-                            <field name="pos_session_ids" widget="many2many_tags"/>
+                    <div attrs="{'invisible': [('state', '=', 'draft')]}">
+                        <group string="Deletion Progress">
+                            <field name="progress_percent" widget="progressbar"/>
+                            <group>
+                                <field name="deleted_count" readonly="1"/>
+                                <field name="total_count" readonly="1"/>
+                            </group>
                         </group>
-                        <group string="Specific Orders">
-                            <field name="pos_order_ids" widget="many2many_tags"/>
+                    </div>
+
+                    <div attrs="{'invisible': [('state', '!=', 'draft')]}">
+                        <group>
+                            <group string="Filter Criteria">
+                                <field name="start_date"/>
+                                <field name="end_date"/>
+                                <field name="pos_config_ids" widget="many2many_tags"/>
+                                <field name="pos_session_ids" widget="many2many_tags"/>
+                            </group>
+                            <group string="Specific Orders">
+                                <field name="pos_order_ids" widget="many2many_tags"/>
+                            </group>
                         </group>
-                    </group>
-                    <group>
-                        <group string="Deletion Options">
-                            <field name="delete_accounting_entries"/>
-                            <field name="delete_stock_moves"/>
-                            <field name="delete_payments"/>
+                        <group>
+                            <group string="Deletion Options">
+                                <field name="delete_accounting_entries"/>
+                                <field name="delete_stock_moves"/>
+                                <field name="delete_payments"/>
+                            </group>
+                            <group string="Performance Options">
+                                <field name="use_fast_mode"/>
+                                <field name="batch_size" required="1"/>
+                            </group>
                         </group>
-                        <group string="Performance Options">
-                            <field name="use_fast_mode"/>
-                            <field name="batch_size" required="1"/>
-                        </group>
-                    </group>
+                    </div>
                 </sheet>
                 <footer>
-                    <button name="action_delete_pos_orders" string="Delete POS Order Data" type="object" class="btn-danger" confirm="Are you sure you want to permanently delete the selected POS orders and associated data?"/>
-                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    <button name="action_start_deletion" string="Start POS Order Deletion" type="object" class="btn-danger" confirm="Are you sure you want to permanently delete the selected POS orders and associated data?" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+                    <button name="action_process_next_batch" string="Process Next Batch" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'processing')]}"/>
+                    <button string="Close" class="btn-secondary" special="cancel" attrs="{'invisible': [('state', '=', 'processing')]}"/>
                 </footer>
             </form>
         </field>
