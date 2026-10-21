@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_delete_pos_order_wizard_form" model="ir.ui.view">
+        <field name="name">delete.pos.order.wizard.form</field>
+        <field name="model">delete.pos.order.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Delete Point of Sale Order Data">
+                <sheet>
+                    <group>
+                        <group string="Filter Criteria">
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                            <field name="pos_config_ids" widget="many2many_tags"/>
+                            <field name="pos_session_ids" widget="many2many_tags"/>
+                        </group>
+                        <group string="Specific Orders">
+                            <field name="pos_order_ids" widget="many2many_tags"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Deletion Options">
+                            <field name="delete_accounting_entries"/>
+                            <field name="delete_stock_moves"/>
+                            <field name="delete_payments"/>
+                        </group>
+                        <group string="Performance Options">
+                            <field name="use_fast_mode"/>
+                            <field name="batch_size" required="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_delete_pos_orders" string="Delete POS Order Data" type="object" class="btn-danger" confirm="Are you sure you want to permanently delete the selected POS orders and associated data?"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_delete_pos_order_wizard" model="ir.actions.act_window">
+        <field name="name">Delete POS Order Data</field>
+        <field name="res_model">delete.pos.order.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_delete_pos_order_wizard"
+              name="Delete POS Order Data"
+              action="action_delete_pos_order_wizard"
+              parent="point_of_sale.menu_point_of_sale"
+              sequence="99"
+              groups="point_of_sale.group_pos_manager"/>
+</odoo>

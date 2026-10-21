@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_delete_pos_order_wizard,delete.pos.order.wizard,model_delete_pos_order_wizard,point_of_sale.group_pos_manager,1,1,1,1
