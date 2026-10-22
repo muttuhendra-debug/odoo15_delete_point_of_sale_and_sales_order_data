@@ -211,47 +211,6 @@ class DeletePosOrderWizard(models.TransientModel):
 
         return self._reopen_wizard()
 
-    def action_process_all_remaining(self):
-        self.ensure_one()
-        if self.state != 'processing' or not self.remaining_order_ids:
-            return self._reopen_wizard()
-
-        try:
-            remaining_ids = json.loads(self.remaining_order_ids)
-        except Exception:
-            remaining_ids = []
-
-        if not remaining_ids:
-            self.write({
-                'state': 'done',
-                'progress_percent': 100.0,
-            })
-            return self._reopen_wizard()
-
-        batch_sz = self.batch_size if self.batch_size and self.batch_size > 0 else 2000
-        while remaining_ids:
-            current_batch_ids = remaining_ids[:batch_sz]
-            remaining_ids = remaining_ids[batch_sz:]
-
-            if self.use_fast_mode:
-                self._delete_fast_sql_batch(current_batch_ids)
-            else:
-                self._delete_orm_batch(current_batch_ids)
-
-            new_deleted_count = self.deleted_count + len(current_batch_ids)
-            new_progress = min(100.0, round((new_deleted_count / self.total_count) * 100.0, 2)) if self.total_count else 100.0
-            new_state = 'done' if not remaining_ids else 'processing'
-
-            self.write({
-                'state': new_state,
-                'deleted_count': new_deleted_count,
-                'progress_percent': new_progress,
-                'remaining_order_ids': json.dumps(remaining_ids),
-            })
-            self.env.cr.commit()
-
-        return self._reopen_wizard()
-
     def _reopen_wizard(self):
         title_map = {
             'all': _('Delete POS Order Data'),
@@ -340,6 +299,13 @@ class DeletePosOrderWizard(models.TransientModel):
             orphan_sess = [s for s in session_ids if s not in active_sess]
             if orphan_sess:
                 orphan_tuple = tuple(orphan_sess)
+                # Clean up linked bank statements & statement lines to prevent FK constraint failures
+                cr.execute("SELECT id FROM account_bank_statement WHERE pos_session_id IN %s", (orphan_tuple,))
+                st_ids = [r[0] for r in cr.fetchall()]
+                if st_ids:
+                    st_tuple = tuple(st_ids)
+                    cr.execute("DELETE FROM account_bank_statement_line WHERE statement_id IN %s", (st_tuple,))
+                    cr.execute("DELETE FROM account_bank_statement WHERE id IN %s", (st_tuple,))
                 cr.execute("DELETE FROM pos_session WHERE id IN %s", (orphan_tuple,))
 
         self.env.cr.commit()

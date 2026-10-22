@@ -35,11 +35,11 @@
                         </group>
                         <group>
                             <group string="Deletion Options">
-                                <field name="delete_pos_orders" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
-                                <field name="delete_accounting_entries" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
-                                <field name="delete_stock_moves" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
-                                <field name="delete_payments" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
-                                <field name="delete_pos_sessions" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
+                                <field name="delete_pos_orders" force_save="1" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
+                                <field name="delete_accounting_entries" force_save="1" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
+                                <field name="delete_stock_moves" force_save="1" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
+                                <field name="delete_payments" force_save="1" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
+                                <field name="delete_pos_sessions" force_save="1" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
                             </group>
                             <group string="Performance Options">
                                 <field name="use_fast_mode"/>
@@ -51,7 +51,6 @@
                 <footer>
                     <button name="action_start_deletion" string="Start Data Deletion" type="object" class="btn-danger" confirm="Are you sure you want to permanently delete the selected data?" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
                     <button name="action_process_next_batch" string="Process Next Batch" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'processing')]}"/>
-                    <button name="action_process_all_remaining" string="Process All Remaining Batches" type="object" class="btn-warning" attrs="{'invisible': [('state', '!=', 'processing')]}"/>
                     <button string="Close" class="btn-secondary" special="cancel" attrs="{'invisible': [('state', '=', 'processing')]}"/>
                 </footer>
             </form>
@@ -86,7 +85,7 @@
         <field name="res_model">delete.pos.order.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
-        <field name="context">{'default_target_type': 'accounting', 'default_delete_pos_orders': False, 'default_delete_accounting_entries': True, 'default_delete_stock_moves': False, 'default_delete_payments': False}</field>
+        <field name="context">{'default_target_type': 'accounting', 'default_delete_pos_orders': False, 'default_delete_accounting_entries': True, 'default_delete_stock_moves': False, 'default_delete_payments': False, 'default_delete_pos_sessions': False}</field>
     </record>
 
     <menuitem id="menu_delete_pos_accounting_wizard"
@@ -101,7 +100,7 @@
         <field name="res_model">delete.pos.order.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
-        <field name="context">{'default_target_type': 'stock', 'default_delete_pos_orders': False, 'default_delete_accounting_entries': False, 'default_delete_stock_moves': True, 'default_delete_payments': False}</field>
+        <field name="context">{'default_target_type': 'stock', 'default_delete_pos_orders': False, 'default_delete_accounting_entries': False, 'default_delete_stock_moves': True, 'default_delete_payments': False, 'default_delete_pos_sessions': False}</field>
     </record>
 
     <menuitem id="menu_delete_pos_stock_wizard"
@@ -116,7 +115,7 @@
         <field name="res_model">delete.pos.order.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
-        <field name="context">{'default_target_type': 'payment', 'default_delete_pos_orders': False, 'default_delete_accounting_entries': False, 'default_delete_stock_moves': False, 'default_delete_payments': True}</field>
+        <field name="context">{'default_target_type': 'payment', 'default_delete_pos_orders': False, 'default_delete_accounting_entries': False, 'default_delete_stock_moves': False, 'default_delete_payments': True, 'default_delete_pos_sessions': False}</field>
     </record>
 
     <menuitem id="menu_delete_pos_payment_wizard"
