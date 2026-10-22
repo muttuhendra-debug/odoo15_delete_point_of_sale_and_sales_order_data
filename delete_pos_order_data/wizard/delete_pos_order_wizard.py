@@ -318,19 +318,22 @@ class DeletePosOrderWizard(models.TransientModel):
         if batch_order_ids:
             order_list = list(batch_order_ids)
 
-            # 0. Get linked session IDs if deleting sessions is requested
-            session_ids = []
-            if self.delete_pos_sessions:
-                cr.execute("SELECT DISTINCT session_id FROM pos_order WHERE id = ANY(%s) AND session_id IS NOT NULL", (order_list,))
-                session_ids = [r[0] for r in cr.fetchall()]
-
-            # 1. Get linked move IDs if delete accounting entries is requested
+            # Collect linked move IDs
             move_ids = []
             if self.delete_accounting_entries:
                 cr.execute("SELECT DISTINCT account_move FROM pos_order WHERE id = ANY(%s) AND account_move IS NOT NULL", (order_list,))
                 move_ids = [r[0] for r in cr.fetchall()]
 
-            # 2. Delete Stock Pickings & Moves if requested
+            # Collect linked session IDs
+            session_ids = []
+            if self.delete_pos_sessions:
+                cr.execute("SELECT DISTINCT session_id FROM pos_order WHERE id = ANY(%s) AND session_id IS NOT NULL", (order_list,))
+                session_ids = [r[0] for r in cr.fetchall()]
+
+            # 1. Unlink account_move references from pos_order & stock_picking to allow deletion without FK blocks
+            cr.execute("UPDATE pos_order SET account_move = NULL WHERE id = ANY(%s)", (order_list,))
+
+            # 2. Delete Stock Pickings, Moves, Lines, Valuation Layers
             if self.delete_stock_moves:
                 cr.execute("SELECT id FROM stock_picking WHERE pos_order_id = ANY(%s)", (order_list,))
                 picking_ids = [r[0] for r in cr.fetchall()]
@@ -344,11 +347,11 @@ class DeletePosOrderWizard(models.TransientModel):
                     cr.execute("DELETE FROM stock_move_line WHERE picking_id = ANY(%s)", (picking_ids,))
                     cr.execute("DELETE FROM stock_picking WHERE id = ANY(%s)", (picking_ids,))
 
-            # 3. Delete POS Payments if requested or if deleting POS orders (to preserve FK integrity)
+            # 3. Delete POS Payments
             if self.delete_payments or self.delete_pos_orders:
                 cr.execute("DELETE FROM pos_payment WHERE pos_order_id = ANY(%s)", (order_list,))
 
-            # 4. If delete_pos_orders is requested, delete lines and headers
+            # 4. Delete POS Order Lines and Header
             if self.delete_pos_orders:
                 cr.execute("SELECT id FROM pos_order_line WHERE order_id = ANY(%s)", (order_list,))
                 pol_ids = [r[0] for r in cr.fetchall()]
@@ -356,11 +359,10 @@ class DeletePosOrderWizard(models.TransientModel):
                     cr.execute("DELETE FROM pos_pack_operation_lot WHERE pos_order_line_id = ANY(%s)", (pol_ids,))
 
                 cr.execute("DELETE FROM pos_order_line WHERE order_id = ANY(%s)", (order_list,))
-                cr.execute("UPDATE pos_order SET account_move = NULL WHERE id = ANY(%s)", (order_list,))
                 cr.execute("UPDATE stock_picking SET pos_order_id = NULL WHERE pos_order_id = ANY(%s)", (order_list,))
                 cr.execute("DELETE FROM pos_order WHERE id = ANY(%s)", (order_list,))
 
-            # 5. Delete Journal Entries if requested
+            # 5. Delete Accounting Moves & Lines
             if self.delete_accounting_entries and move_ids:
                 cr.execute("UPDATE pos_order SET account_move = NULL WHERE account_move = ANY(%s)", (move_ids,))
                 cr.execute("DELETE FROM stock_valuation_layer WHERE account_move_id = ANY(%s)", (move_ids,))
@@ -373,7 +375,7 @@ class DeletePosOrderWizard(models.TransientModel):
                     cr.execute("DELETE FROM account_move_line WHERE move_id = ANY(%s)", (move_ids,))
                 cr.execute("DELETE FROM account_move WHERE id = ANY(%s)", (move_ids,))
 
-            # 6. Delete empty POS Sessions if requested
+            # 6. Delete orphan POS Sessions
             if self.delete_pos_sessions and session_ids:
                 cr.execute("SELECT DISTINCT session_id FROM pos_order WHERE session_id = ANY(%s)", (session_ids,))
                 active_sess = set(r[0] for r in cr.fetchall())
@@ -398,6 +400,9 @@ class DeletePosOrderWizard(models.TransientModel):
             cr.execute("SELECT id FROM pos_order WHERE session_id = ANY(%s)", (sess_list,))
             rem_orders = [r[0] for r in cr.fetchall()]
             if rem_orders:
+                # Disconnect account_move first
+                cr.execute("UPDATE pos_order SET account_move = NULL WHERE id = ANY(%s)", (rem_orders,))
+
                 cr.execute("SELECT id FROM stock_picking WHERE pos_order_id = ANY(%s)", (rem_orders,))
                 picking_ids = [r[0] for r in cr.fetchall()]
                 if picking_ids:
@@ -415,7 +420,6 @@ class DeletePosOrderWizard(models.TransientModel):
                 if pol_ids:
                     cr.execute("DELETE FROM pos_pack_operation_lot WHERE pos_order_line_id = ANY(%s)", (pol_ids,))
                 cr.execute("DELETE FROM pos_order_line WHERE order_id = ANY(%s)", (rem_orders,))
-                cr.execute("UPDATE pos_order SET account_move = NULL WHERE id = ANY(%s)", (rem_orders,))
                 cr.execute("UPDATE stock_picking SET pos_order_id = NULL WHERE pos_order_id = ANY(%s)", (rem_orders,))
                 cr.execute("DELETE FROM pos_order WHERE id = ANY(%s)", (rem_orders,))
 
