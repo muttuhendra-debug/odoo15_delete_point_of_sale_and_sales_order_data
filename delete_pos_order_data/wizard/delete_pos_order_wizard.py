@@ -74,6 +74,11 @@ class DeletePosOrderWizard(models.TransientModel):
         default=True,
         help='If checked, payment records associated with the POS orders will be deleted.'
     )
+    delete_pos_sessions = fields.Boolean(
+        string='Delete POS Sessions',
+        default=True,
+        help='If checked, POS Sessions without remaining orders will also be deleted.'
+    )
     use_fast_mode = fields.Boolean(
         string='Fast SQL Mode (High Performance)',
         default=True,
@@ -118,6 +123,7 @@ class DeletePosOrderWizard(models.TransientModel):
             self.delete_accounting_entries = True
             self.delete_stock_moves = True
             self.delete_payments = True
+            self.delete_pos_sessions = True
 
     def action_start_deletion(self):
         self.ensure_one()
@@ -153,7 +159,7 @@ class DeletePosOrderWizard(models.TransientModel):
         if not order_ids:
             raise UserError(_("No POS Orders found matching the specified criteria."))
 
-        if not any([self.delete_pos_orders, self.delete_accounting_entries, self.delete_stock_moves, self.delete_payments]):
+        if not any([self.delete_pos_orders, self.delete_accounting_entries, self.delete_stock_moves, self.delete_payments, self.delete_pos_sessions]):
             raise UserError(_("Please select at least one component to delete."))
 
         self.write({
@@ -267,6 +273,12 @@ class DeletePosOrderWizard(models.TransientModel):
         cr = self.env.cr
         batch_tuple = tuple(batch_order_ids)
 
+        # 0. Get linked session IDs if deleting sessions is requested
+        session_ids = []
+        if self.delete_pos_sessions:
+            cr.execute("SELECT DISTINCT session_id FROM pos_order WHERE id IN %s AND session_id IS NOT NULL", (batch_tuple,))
+            session_ids = [r[0] for r in cr.fetchall()]
+
         # 1. Get linked move IDs if delete accounting entries is requested
         move_ids = []
         if self.delete_accounting_entries:
@@ -320,6 +332,16 @@ class DeletePosOrderWizard(models.TransientModel):
                 cr.execute("DELETE FROM account_move_line WHERE move_id IN %s", (move_tuple,))
             cr.execute("DELETE FROM account_move WHERE id IN %s", (move_tuple,))
 
+        # 6. Delete empty POS Sessions if requested
+        if self.delete_pos_sessions and session_ids:
+            sess_tuple = tuple(session_ids)
+            cr.execute("SELECT DISTINCT session_id FROM pos_order WHERE session_id IN %s", (sess_tuple,))
+            active_sess = set(r[0] for r in cr.fetchall())
+            orphan_sess = [s for s in session_ids if s not in active_sess]
+            if orphan_sess:
+                orphan_tuple = tuple(orphan_sess)
+                cr.execute("DELETE FROM pos_session WHERE id IN %s", (orphan_tuple,))
+
         self.env.cr.commit()
         self.env.clear()
 
@@ -363,7 +385,12 @@ class DeletePosOrderWizard(models.TransientModel):
                 payments.unlink()
 
         if self.delete_pos_orders:
+            sessions = orders.mapped('session_id').filtered(lambda s: s.exists())
             orders.write({'state': 'draft'})
             orders.unlink()
+            if self.delete_pos_sessions and sessions:
+                for sess in sessions:
+                    if not self.env['pos.order'].search_count([('session_id', '=', sess.id)]):
+                        sess.unlink()
 
         self.env.cr.commit()

@@ -39,6 +39,7 @@
                                 <field name="delete_accounting_entries" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
                                 <field name="delete_stock_moves" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
                                 <field name="delete_payments" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
+                                <field name="delete_pos_sessions" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
                             </group>
                             <group string="Performance Options">
                                 <field name="use_fast_mode"/>
@@ -70,7 +71,7 @@
         <field name="res_model">delete.pos.order.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
-        <field name="context">{'default_target_type': 'all', 'default_delete_pos_orders': True, 'default_delete_accounting_entries': True, 'default_delete_stock_moves': True, 'default_delete_payments': True}</field>
+        <field name="context">{'default_target_type': 'all', 'default_delete_pos_orders': True, 'default_delete_accounting_entries': True, 'default_delete_stock_moves': True, 'default_delete_payments': True, 'default_delete_pos_sessions': True}</field>
     </record>
 
     <menuitem id="menu_delete_pos_order_wizard"
