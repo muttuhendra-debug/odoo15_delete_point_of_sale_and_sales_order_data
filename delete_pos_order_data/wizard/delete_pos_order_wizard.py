@@ -263,9 +263,12 @@ class DeletePosOrderWizard(models.TransientModel):
             else:
                 self._delete_orm_batch(batch_ids=current_batch_orders)
         else:
-            current_batch_sessions = rem_sessions[:batch_sz]
+            # Deleting POS Sessions cascades to bank statements, bank statement lines, and session logs.
+            # To prevent HTTP request timeouts (e.g., Nginx / browser timeout), cap session batch size to max 50 per step.
+            sess_batch_sz = min(batch_sz, 50)
+            current_batch_sessions = rem_sessions[:sess_batch_sz]
             next_rem_orders = []
-            next_rem_sessions = rem_sessions[batch_sz:]
+            next_rem_sessions = rem_sessions[sess_batch_sz:]
             processed_count = len(current_batch_sessions)
 
             if self.use_fast_mode:
