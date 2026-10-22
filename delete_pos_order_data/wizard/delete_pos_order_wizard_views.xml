@@ -123,4 +123,19 @@
               action="action_delete_pos_payment_wizard"
               parent="menu_delete_pos_data_root"
               sequence="4"/>
+
+    <!-- 5. Delete POS Sessions -->
+    <record id="action_delete_pos_session_wizard" model="ir.actions.act_window">
+        <field name="name">Delete POS Sessions</field>
+        <field name="res_model">delete.pos.order.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_target_type': 'session', 'default_delete_pos_orders': False, 'default_delete_accounting_entries': False, 'default_delete_stock_moves': False, 'default_delete_payments': False, 'default_delete_pos_sessions': True}</field>
+    </record>
+
+    <menuitem id="menu_delete_pos_session_wizard"
+              name="Delete POS Sessions"
+              action="action_delete_pos_session_wizard"
+              parent="menu_delete_pos_data_root"
+              sequence="5"/>
 </odoo>
