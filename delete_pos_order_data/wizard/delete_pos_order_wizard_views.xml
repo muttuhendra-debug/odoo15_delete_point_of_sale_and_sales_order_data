@@ -49,7 +49,8 @@
                     </div>
                 </sheet>
                 <footer>
-                    <button name="action_start_deletion" string="Start Data Deletion" type="object" class="btn-danger" confirm="Are you sure you want to permanently delete the selected data?" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+                    <button name="action_delete_all_auto" string="Process All Automatically" type="object" class="btn-danger" confirm="Are you sure you want to delete ALL matching data automatically in continuous batches?" attrs="{'invisible': [('state', '=', 'done')]}"/>
+                    <button name="action_start_deletion" string="Start Step-by-Step Batch" type="object" class="btn-primary" confirm="Are you sure you want to start step-by-step deletion?" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
                     <button name="action_process_next_batch" string="Process Next Batch" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'processing')]}"/>
                     <button string="Close" class="btn-secondary" special="cancel" attrs="{'invisible': [('state', '=', 'processing')]}"/>
                 </footer>

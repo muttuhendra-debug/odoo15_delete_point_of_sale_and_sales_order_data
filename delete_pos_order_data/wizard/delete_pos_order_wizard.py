@@ -87,8 +87,8 @@ class DeletePosOrderWizard(models.TransientModel):
     )
     batch_size = fields.Integer(
         string='Batch Size',
-        default=500,
-        help='Number of orders to process per batch step (Recommended: 100 - 1000).'
+        default=200,
+        help='Number of orders to process per batch step (Recommended: 100 - 300 to avoid HTTP timeouts).'
     )
 
     # Progress tracking fields
@@ -249,7 +249,7 @@ class DeletePosOrderWizard(models.TransientModel):
             })
             return self._reopen_wizard()
 
-        batch_sz = self.batch_size if self.batch_size and self.batch_size > 0 else 500
+        batch_sz = self.batch_size if self.batch_size and self.batch_size > 0 else 200
         processed_count = 0
 
         if rem_orders:
@@ -291,6 +291,160 @@ class DeletePosOrderWizard(models.TransientModel):
             'progress_percent': new_progress,
             'remaining_order_ids': json.dumps(new_payload),
         })
+
+        return self._reopen_wizard()
+
+    def action_delete_all_auto(self):
+        self.ensure_one()
+
+        if self.state == 'draft':
+            if not any([self.delete_pos_orders, self.delete_accounting_entries, self.delete_stock_moves, self.delete_payments, self.delete_pos_sessions]):
+                raise UserError(_("Please select at least one component to delete."))
+
+            has_order_components = any([
+                self.delete_pos_orders,
+                self.delete_accounting_entries,
+                self.delete_stock_moves,
+                self.delete_payments
+            ])
+
+            order_ids = []
+            if has_order_components:
+                if self.pos_order_ids:
+                    order_ids = self.pos_order_ids.ids
+                else:
+                    domain = []
+                    if self.filter_type == 'month' and self.month and self.year:
+                        import calendar
+                        m = int(self.month)
+                        y = int(self.year)
+                        last_day = calendar.monthrange(y, m)[1]
+                        s_date = datetime(y, m, 1)
+                        e_date = datetime(y, m, last_day, 23, 59, 59)
+                        domain.append(('date_order', '>=', s_date))
+                        domain.append(('date_order', '<=', e_date))
+                    else:
+                        if self.start_date:
+                            start_dt = datetime.combine(self.start_date, time.min)
+                            domain.append(('date_order', '>=', start_dt))
+                        if self.end_date:
+                            end_dt = datetime.combine(self.end_date, time.max)
+                            domain.append(('date_order', '<=', end_dt))
+
+                    if self.pos_config_ids:
+                        domain.append(('config_id', 'in', self.pos_config_ids.ids))
+                    if self.pos_session_ids:
+                        domain.append(('session_id', 'in', self.pos_session_ids.ids))
+
+                    order_ids = self.env['pos.order'].search(domain).ids
+
+            session_ids = []
+            if self.delete_pos_sessions:
+                if self.pos_session_ids:
+                    session_ids = self.pos_session_ids.ids
+                else:
+                    sess_domain = []
+                    if self.filter_type == 'month' and self.month and self.year:
+                        import calendar
+                        m = int(self.month)
+                        y = int(self.year)
+                        last_day = calendar.monthrange(y, m)[1]
+                        s_date = datetime(y, m, 1)
+                        e_date = datetime(y, m, last_day, 23, 59, 59)
+                        sess_domain.append(('start_at', '>=', s_date))
+                        sess_domain.append(('start_at', '<=', e_date))
+                    else:
+                        if self.start_date:
+                            start_dt = datetime.combine(self.start_date, time.min)
+                            sess_domain.append(('start_at', '>=', start_dt))
+                        if self.end_date:
+                            end_dt = datetime.combine(self.end_date, time.max)
+                            sess_domain.append(('start_at', '<=', end_dt))
+
+                    if self.pos_config_ids:
+                        sess_domain.append(('config_id', 'in', self.pos_config_ids.ids))
+
+                    session_ids = self.env['pos.session'].search(sess_domain).ids
+
+            if not order_ids and not session_ids:
+                raise UserError(_("No POS Orders or POS Sessions found matching the specified criteria."))
+
+            payload = {
+                'orders': order_ids,
+                'sessions': session_ids,
+            }
+            total_items = len(order_ids) + len(session_ids)
+
+            self.write({
+                'state': 'processing',
+                'total_count': total_items,
+                'deleted_count': 0,
+                'progress_percent': 0.0,
+                'remaining_order_ids': json.dumps(payload),
+            })
+            self.env.cr.commit()
+
+        while self.state == 'processing':
+            try:
+                payload = json.loads(self.remaining_order_ids)
+                if isinstance(payload, list):
+                    payload = {'orders': payload, 'sessions': []}
+            except Exception:
+                payload = {'orders': [], 'sessions': []}
+
+            rem_orders = payload.get('orders', [])
+            rem_sessions = payload.get('sessions', [])
+
+            if not rem_orders and not rem_sessions:
+                self.write({
+                    'state': 'done',
+                    'progress_percent': 100.0,
+                })
+                self.env.cr.commit()
+                break
+
+            batch_sz = self.batch_size if self.batch_size and self.batch_size > 0 else 200
+            processed_count = 0
+
+            if rem_orders:
+                current_batch_orders = rem_orders[:batch_sz]
+                next_rem_orders = rem_orders[batch_sz:]
+                next_rem_sessions = rem_sessions
+                processed_count = len(current_batch_orders)
+
+                if self.use_fast_mode:
+                    self._delete_fast_sql_batch(batch_order_ids=current_batch_orders)
+                else:
+                    self._delete_orm_batch(batch_ids=current_batch_orders)
+            else:
+                sess_batch_sz = min(batch_sz, 50)
+                current_batch_sessions = rem_sessions[:sess_batch_sz]
+                next_rem_orders = []
+                next_rem_sessions = rem_sessions[sess_batch_sz:]
+                processed_count = len(current_batch_sessions)
+
+                if self.use_fast_mode:
+                    self._delete_fast_sql_batch(batch_order_ids=[], batch_session_ids=current_batch_sessions)
+                else:
+                    self._delete_orm_sessions_batch(batch_session_ids=current_batch_sessions)
+
+            new_deleted_count = self.deleted_count + processed_count
+            new_progress = min(100.0, round((new_deleted_count / self.total_count) * 100.0, 2)) if self.total_count else 100.0
+            new_state = 'done' if (not next_rem_orders and not next_rem_sessions) else 'processing'
+
+            new_payload = {
+                'orders': next_rem_orders,
+                'sessions': next_rem_sessions,
+            }
+
+            self.write({
+                'state': new_state,
+                'deleted_count': new_deleted_count,
+                'progress_percent': new_progress,
+                'remaining_order_ids': json.dumps(new_payload),
+            })
+            self.env.cr.commit()
+            self.env.clear()
 
         return self._reopen_wizard()
 
