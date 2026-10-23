@@ -24,7 +24,7 @@ odoo.define('delete_pos_order_data.auto_loop', function (require) {
                     if (this.autoLoopTimer) {
                         clearTimeout(this.autoLoopTimer);
                     }
-                    // Auto trigger next batch after 4 seconds (4000ms) delay as requested
+                    // Auto trigger next batch almost immediately (200ms delay) for maximum throughput
                     this.autoLoopTimer = setTimeout(function () {
                         if (self.renderer && self.renderer.state && self.renderer.state.data.state === 'processing') {
                             self._callButtonAction({
@@ -32,7 +32,7 @@ odoo.define('delete_pos_order_data.auto_loop', function (require) {
                                 type: 'object',
                             }, self.renderer.state);
                         }
-                    }, 4000);
+                    }, 200);
                 } else {
                     if (this.autoLoopTimer) {
                         clearTimeout(this.autoLoopTimer);
