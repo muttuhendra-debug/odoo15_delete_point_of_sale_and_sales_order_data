@@ -4,50 +4,138 @@
         <field name="name">delete.pos.order.wizard.form</field>
         <field name="model">delete.pos.order.wizard</field>
         <field name="arch" type="xml">
-            <form string="Delete Point of Sale Order Data">
+            <form string="Delete Point of Sale Data">
+                <field name="state" invisible="1"/>
+                <field name="target_type" invisible="1"/>
                 <sheet>
-                    <group>
-                        <group string="Filter Criteria">
-                            <field name="start_date"/>
-                            <field name="end_date"/>
-                            <field name="pos_config_ids" widget="many2many_tags"/>
-                            <field name="pos_session_ids" widget="many2many_tags"/>
+                    <div attrs="{'invisible': [('state', '=', 'draft')]}">
+                        <group string="Deletion Progress">
+                            <field name="progress_percent" widget="progressbar"/>
+                            <group>
+                                <field name="deleted_count" readonly="1"/>
+                                <field name="total_count" readonly="1"/>
+                            </group>
                         </group>
-                        <group string="Specific Orders">
-                            <field name="pos_order_ids" widget="many2many_tags"/>
+                    </div>
+
+                    <div attrs="{'invisible': [('state', '!=', 'draft')]}">
+                        <group>
+                            <group string="Filter Criteria">
+                                <field name="filter_type" widget="radio"/>
+                                <field name="start_date" attrs="{'invisible': [('filter_type', '!=', 'date_range')]}"/>
+                                <field name="end_date" attrs="{'invisible': [('filter_type', '!=', 'date_range')]}"/>
+                                <field name="month" attrs="{'invisible': [('filter_type', '!=', 'month')], 'required': [('filter_type', '=', 'month')]}"/>
+                                <field name="year" options="{'format': False}" attrs="{'invisible': [('filter_type', '!=', 'month')], 'required': [('filter_type', '=', 'month')]}"/>
+                                <field name="pos_config_ids" widget="many2many_tags"/>
+                                <field name="pos_session_ids" widget="many2many_tags"/>
+                            </group>
+                            <group string="Specific Orders">
+                                <field name="pos_order_ids" widget="many2many_tags"/>
+                            </group>
                         </group>
-                    </group>
-                    <group>
-                        <group string="Deletion Options">
-                            <field name="delete_accounting_entries"/>
-                            <field name="delete_stock_moves"/>
-                            <field name="delete_payments"/>
+                        <group>
+                            <group string="Deletion Options">
+                                <field name="delete_pos_orders" force_save="1" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
+                                <field name="delete_accounting_entries" force_save="1" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
+                                <field name="delete_stock_moves" force_save="1" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
+                                <field name="delete_payments" force_save="1" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
+                                <field name="delete_pos_sessions" force_save="1" attrs="{'readonly': [('target_type', '!=', 'all')]}"/>
+                            </group>
+                            <group string="Performance Options">
+                                <field name="use_fast_mode"/>
+                                <field name="batch_size" required="1"/>
+                            </group>
                         </group>
-                        <group string="Performance Options">
-                            <field name="use_fast_mode"/>
-                            <field name="batch_size" required="1"/>
-                        </group>
-                    </group>
+                    </div>
                 </sheet>
                 <footer>
-                    <button name="action_delete_pos_orders" string="Delete POS Order Data" type="object" class="btn-danger" confirm="Are you sure you want to permanently delete the selected POS orders and associated data?"/>
-                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    <button name="action_start_deletion" string="Start Fast Auto-Loop Deletion" type="object" class="btn-danger" confirm="Are you sure you want to permanently delete the selected data using JavaScript Auto-Loop?" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+                    <button name="action_process_next_batch" string="Process Next Batch" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'processing')]}"/>
+                    <button string="Close" class="btn-secondary" special="cancel" attrs="{'invisible': [('state', '=', 'processing')]}"/>
                 </footer>
             </form>
         </field>
     </record>
 
+    <!-- Parent Menu for Deletion -->
+    <menuitem id="menu_delete_pos_data_root"
+              name="Delete POS Data"
+              parent="point_of_sale.menu_point_of_sale"
+              sequence="99"
+              groups="point_of_sale.group_pos_manager"/>
+
+    <!-- 1. Delete POS Orders & All Linked Data -->
     <record id="action_delete_pos_order_wizard" model="ir.actions.act_window">
         <field name="name">Delete POS Order Data</field>
         <field name="res_model">delete.pos.order.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
+        <field name="context">{'default_target_type': 'all', 'default_delete_pos_orders': True, 'default_delete_accounting_entries': True, 'default_delete_stock_moves': True, 'default_delete_payments': True, 'default_delete_pos_sessions': True}</field>
     </record>
 
     <menuitem id="menu_delete_pos_order_wizard"
               name="Delete POS Order Data"
               action="action_delete_pos_order_wizard"
-              parent="point_of_sale.menu_point_of_sale"
-              sequence="99"
-              groups="point_of_sale.group_pos_manager"/>
+              parent="menu_delete_pos_data_root"
+              sequence="1"/>
+
+    <!-- 2. Delete Journal Entries (Accounting) -->
+    <record id="action_delete_pos_accounting_wizard" model="ir.actions.act_window">
+        <field name="name">Delete Journal Entries (Accounting)</field>
+        <field name="res_model">delete.pos.order.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_target_type': 'accounting', 'default_delete_pos_orders': False, 'default_delete_accounting_entries': True, 'default_delete_stock_moves': False, 'default_delete_payments': False, 'default_delete_pos_sessions': False}</field>
+    </record>
+
+    <menuitem id="menu_delete_pos_accounting_wizard"
+              name="Delete Journal Entries (Accounting)"
+              action="action_delete_pos_accounting_wizard"
+              parent="menu_delete_pos_data_root"
+              sequence="2"/>
+
+    <!-- 3. Delete Stock Picking & Moves -->
+    <record id="action_delete_pos_stock_wizard" model="ir.actions.act_window">
+        <field name="name">Delete Stock Picking &amp; Moves</field>
+        <field name="res_model">delete.pos.order.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_target_type': 'stock', 'default_delete_pos_orders': False, 'default_delete_accounting_entries': False, 'default_delete_stock_moves': True, 'default_delete_payments': False, 'default_delete_pos_sessions': False}</field>
+    </record>
+
+    <menuitem id="menu_delete_pos_stock_wizard"
+              name="Delete Stock Picking &amp; Moves"
+              action="action_delete_pos_stock_wizard"
+              parent="menu_delete_pos_data_root"
+              sequence="3"/>
+
+    <!-- 4. Delete POS Payments -->
+    <record id="action_delete_pos_payment_wizard" model="ir.actions.act_window">
+        <field name="name">Delete POS Payments</field>
+        <field name="res_model">delete.pos.order.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_target_type': 'payment', 'default_delete_pos_orders': False, 'default_delete_accounting_entries': False, 'default_delete_stock_moves': False, 'default_delete_payments': True, 'default_delete_pos_sessions': False}</field>
+    </record>
+
+    <menuitem id="menu_delete_pos_payment_wizard"
+              name="Delete POS Payments"
+              action="action_delete_pos_payment_wizard"
+              parent="menu_delete_pos_data_root"
+              sequence="4"/>
+
+    <!-- 5. Delete POS Sessions -->
+    <record id="action_delete_pos_session_wizard" model="ir.actions.act_window">
+        <field name="name">Delete POS Sessions</field>
+        <field name="res_model">delete.pos.order.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_target_type': 'session', 'default_delete_pos_orders': False, 'default_delete_accounting_entries': False, 'default_delete_stock_moves': False, 'default_delete_payments': False, 'default_delete_pos_sessions': True}</field>
+    </record>
+
+    <menuitem id="menu_delete_pos_session_wizard"
+              name="Delete POS Sessions"
+              action="action_delete_pos_session_wizard"
+              parent="menu_delete_pos_data_root"
+              sequence="5"/>
 </odoo>

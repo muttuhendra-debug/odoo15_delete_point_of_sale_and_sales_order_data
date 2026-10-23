@@ -24,6 +24,11 @@ Modul khusus Odoo 15 untuk menghapus data Orders Point of Sale secara fleksibel 
         'security/ir.model.access.csv',
         'wizard/delete_pos_order_wizard_views.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'delete_pos_order_data/static/src/js/delete_pos_order_auto.js',
+        ],
+    },
     'installable': True,
     'application': False,
     'auto_install': False,
